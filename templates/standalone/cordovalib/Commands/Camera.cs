@@ -426,8 +426,10 @@ namespace WPCordovaClassLib.Cordova.Commands
             objBitmap.SetSource(stream);
             objWB = new WriteableBitmap(objBitmap);
 
+            int[] widthHeight = CalculateAspectRatio(objBitmap, cameraOptions.TargetHeight, cameraOptions.TargetWidth);
+
             // resize the photo with user defined TargetWidth & TargetHeight
-            Extensions.SaveJpeg(objWB, objBitmapStreamResized, cameraOptions.TargetWidth, cameraOptions.TargetHeight, 0, cameraOptions.Quality);
+            Extensions.SaveJpeg(objWB, objBitmapStreamResized, widthHeight[0], widthHeight[1], 0, cameraOptions.Quality);
 
             //Convert the resized stream to a byte array. 
             streamLength = (int)objBitmapStreamResized.Length;
@@ -437,6 +439,53 @@ namespace WPCordovaClassLib.Cordova.Commands
             intResult = objBitmapStreamResized.Read(resizedFile, 0, streamLength);
 
             return resizedFile;
+        }
+
+        private int[] CalculateAspectRatio(BitmapSource image, int targetHeight, int targetWidth)
+        {
+            int newWidth = targetWidth;
+            int newHeight = targetHeight;
+            int origWidth = image.PixelWidth;
+            int origHeight = image.PixelHeight;
+
+            // If no new width or height were specified return the original bitmap
+            if (newWidth <= 0 && newHeight <= 0)
+            {
+                newWidth = origWidth;
+                newHeight = origHeight;
+            }
+            // Only the width was specified
+            else if (newWidth > 0 && newHeight <= 0)
+            {
+                newHeight = (newWidth * origHeight) / origWidth;
+            }
+            // only the height was specified
+            else if (newWidth <= 0 && newHeight > 0)
+            {
+                newWidth = (newHeight * origWidth) / origHeight;
+            }
+            // If the user specified both a positive width and height
+            // (potentially different aspect ratio) then the width or height is
+            // scaled so that the image fits while maintaining aspect ratio.
+            else
+            {
+                double newRatio = newWidth / (double)newHeight;
+                double origRatio = origWidth / (double)origHeight;
+
+                if (origRatio > newRatio)
+                {
+                    newHeight = (newWidth * origHeight) / origWidth;
+                }
+                else if (origRatio < newRatio)
+                {
+                    newWidth = (newHeight * origWidth) / origHeight;
+                }
+            }
+
+            int[] retval = new int[2];
+            retval[0] = newWidth;
+            retval[1] = newHeight;
+            return retval;
         }
 
         /// <summary>
@@ -469,7 +518,8 @@ namespace WPCordovaClassLib.Cordova.Commands
                     // resize image if Height and Width defined via options 
                     if (cameraOptions.TargetHeight > 0 && cameraOptions.TargetWidth > 0)
                     {
-                        image.SaveJpeg(stream, cameraOptions.TargetWidth, cameraOptions.TargetHeight, 0, cameraOptions.Quality);
+                        int[] widthHeight = CalculateAspectRatio(image, cameraOptions.TargetHeight, cameraOptions.TargetWidth);
+                        image.SaveJpeg(stream, widthHeight[0], widthHeight[1], 0, cameraOptions.Quality);
                     }
                     else
                     {
